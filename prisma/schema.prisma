@@ -1,3 +1,6 @@
+// This is your Prisma schema file for PostgreSQL.
+// It includes all tables, relations, enums, and mappings following best practices.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,44 +10,152 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String   @id @default(cuid())
-  name          String?
-  email         String?  @unique
-  password      String?
-  emailVerified DateTime?
-  image         String?
-
-  accounts Account[]
-  sessions Session[]
+// Enums
+enum RoleName {
+  user
+  admin
+  superadmin
 }
 
+enum CourseTypeName {
+  compulsory
+  specialization
+  elective
+}
+
+enum SectionType {
+  single
+  list
+  content
+}
+
+enum SyncStatus {
+  success
+  failed
+  partial
+}
+
+enum FaqStatus {
+  draft
+  published
+  archived
+}
+
+enum TestimonyStatus {
+  draft
+  published
+  archived
+}
+
+// Models
+
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
+  id                String   @id @default(uuid())
+  userId            String   @map("userId")
+  type              String
+  provider          String
+  providerAccountId String   @map("providerAccountId")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("ACCOUNT")
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("sessionToken")
+  userId       String   @map("userId")
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("SESSION")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  name            String?
+  email           String?   @unique
+  password        String?
+  emailVerified   DateTime? @map("emailVerified")
+  image           String?
+  identifier_id   String?   @map("identifier_id")
+  roleId          String    @map("role_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  role            Role                @relation(fields: [roleId], references: [id])
+  accounts        Account[]
+  sessions        Session[]
+  authLogs        AuthLog[]
+  activityLogs    ActivityLog[]
+  news            News[]
+  lecturer        Lecturer?
+
+  @@map("USERS")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  role_name RoleName @map("role_name")
+
+  users User[]
+
+  @@map("ROLES")
+}
+
+model AuthLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  email      String
+  ip_address String   @map("ip_address")
+  event      String
+  created_at DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([created_at])
+  @@map("AUTH_LOGS")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  target     String
+  created_at DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([created_at])
+  @@map("ACTIVITY_LOGS")
+}
+
+model News {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  createdBy  String?  @map("created_by")
+  image      String?
+  created_at DateTime @default(now()) @map("created_at")
+  slug       String   @unique
+
+  author User? @relation(fields: [createdBy], references: [id])
+
+  @@index([created_at])
+  @@index([slug])
+  @@map("NEWS")
 }
 
 model VerificationToken {
@@ -52,5 +163,217 @@ model VerificationToken {
   token      String   @unique
   expires    DateTime
 
-  @@unique([identifier, token])
+  @@id([identifier, token])
+  @@map("VERIFICATION_TOKEN")
+}
+
+model Lecturer {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  profile_photo   String?  @map("profile_photo")
+  description     String?
+  handbook_file   String?  @map("handbook_file")
+  specialization  String?
+  phone_number    String?  @map("phone_number")
+
+  user              User                   @relation(fields: [userId], references: [id])
+  lecturerSources   LecturerSource[]
+  publicationAuthors PublicationAuthor[]
+
+  @@map("LECTURER")
+}
+
+model SourceType {
+  id   String @id @default(uuid())
+  name String
+
+  lecturerSources     LecturerSource[]
+  publicationSources  PublicationSource[]
+
+  @@map("SOURCE_TYPE")
+}
+
+model LecturerSource {
+  id            String   @id @default(uuid())
+  sourceTypeId  String   @map("source_type_id")
+  lecturerId    String   @map("lecturer_id")
+  external_id   String?  @map("external_id")
+  created_at    DateTime @default(now()) @map("created_at")
+
+  sourceType SourceType @relation(fields: [sourceTypeId], references: [id])
+  lecturer   Lecturer   @relation(fields: [lecturerId], references: [id])
+  syncLogs   SyncLog[]
+
+  @@index([lecturerId])
+  @@index([sourceTypeId])
+  @@map("LECTURER_SOURCES")
+}
+
+model SyncLog {
+  id                 String     @id @default(uuid())
+  lecturerSourceId   String     @map("lecturer_source_id")
+  status             SyncStatus
+  started_at         DateTime   @map("started_at")
+  finished_at        DateTime?  @map("finished_at")
+  record_fetched     Int?       @map("record_fetched")
+  record_inserted    Int?       @map("record_inserted")
+  error_message      String?    @map("error_message")
+
+  lecturerSource LecturerSource @relation(fields: [lecturerSourceId], references: [id])
+
+  @@index([lecturerSourceId])
+  @@index([started_at])
+  @@map("SYNC_LOGS")
+}
+
+model Publication {
+  id                String   @id @default(uuid())
+  title             String
+  normalized_title  String   @unique @map("normalized_title")
+  year              Int?
+  doi_raw           String?  @map("doi_raw")
+  doi_normalized    String?  @unique @map("doi_normalized")
+  abstract          String?
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+
+  publicationSources PublicationSource[]
+  publicationAuthors PublicationAuthor[]
+
+  @@index([created_at])
+  @@index([year])
+  @@map("PUBLICATIONS")
+}
+
+model PublicationSource {
+  id             String   @id @default(uuid())
+  publicationId  String   @map("publication_id")
+  sourceTypeId   String   @map("source_type_id")
+  external_id    String?  @map("external_id")
+
+  publication Publication @relation(fields: [publicationId], references: [id])
+  sourceType SourceType   @relation(fields: [sourceTypeId], references: [id])
+
+  @@index([publicationId])
+  @@index([sourceTypeId])
+  @@map("PUBLICATIONS_SOURCES")
+}
+
+model PublicationAuthor {
+  id             String   @id @default(uuid())
+  lecturerId     String?  @map("lecturer_id")
+  publicationId  String   @map("publication_id")
+  author_name    String   @map("author_name")
+  author_order   Int      @map("author_order")
+
+  lecturer    Lecturer?   @relation(fields: [lecturerId], references: [id])
+  publication Publication @relation(fields: [publicationId], references: [id])
+
+  @@unique([publicationId, author_order])
+  @@index([publicationId])
+  @@index([lecturerId])
+  @@map("PUBLICATIONS_AUTHORS")
+}
+
+model DocumentCategory {
+  id              String  @id @default(uuid())
+  categories_name String  @map("categories_name")
+  categories_desc String? @map("categories_desc")
+
+  documents Document[]
+
+  @@map("DOCUMENT_CATEGORIES")
+}
+
+model Document {
+  id                    String   @id @default(uuid())
+  documentCategoriesId  String   @map("document_categories_id")
+  title                 String
+  description           String?
+  file_path             String   @map("file_path")
+  file_type             String   @map("file_type")
+  created_at            DateTime @default(now()) @map("created_at")
+
+  category DocumentCategory @relation(fields: [documentCategoriesId], references: [id])
+
+  @@index([documentCategoriesId])
+  @@index([created_at])
+  @@map("DOCUMENTS")
+}
+
+model Section {
+  id         String       @id @default(uuid())
+  name       String
+  type       SectionType
+  created_at DateTime     @default(now()) @map("created_at")
+
+  contents Content[]
+
+  @@map("SECTIONS")
+}
+
+model Content {
+  id         String   @id @default(uuid())
+  sectionId  String   @map("section_id")
+  title      String?
+  content    String?
+  image      String?
+  order_no   Int      @map("order_no")
+  created_at DateTime @default(now()) @map("created_at")
+
+  section Section @relation(fields: [sectionId], references: [id])
+
+  @@unique([sectionId, order_no])
+  @@index([sectionId])
+  @@map("CONTENTS")
+}
+
+model CurriculumType {
+  id               String         @id @default(uuid())
+  course_type_name CourseTypeName @map("course_type_name")
+
+  curricula Curriculum[]
+
+  @@map("CURRICULUM_TYPE")
+}
+
+model Curriculum {
+  id             String   @id @default(uuid())
+  course_id      String   @map("course_id")
+  course_name    String   @map("course_name")
+  courseTypeId   String   @map("course_type_id")
+  lecture_credit Int      @map("lecture_credit")
+  lab_credit     Int      @map("lab_credit")
+  ects           Int
+  notes          String?
+
+  courseType CurriculumType @relation(fields: [courseTypeId], references: [id])
+
+  @@index([courseTypeId])
+  @@map("CURRICULUM")
+}
+
+model Faq {
+  id       String    @id @default(uuid())
+  question String
+  answer   String
+  status   FaqStatus
+
+  @@index([status])
+  @@map("FAQ")
+}
+
+model Testimony {
+  id              String         @id @default(uuid())
+  sender_name     String         @map("sender_name")
+  sender_position String         @map("sender_position")
+  photo           String?
+  full_testimony  String         @map("full_testimony")
+  date            DateTime       @map("date")
+  status          TestimonyStatus
+  created_at      DateTime       @default(now()) @map("created_at")
+
+  @@index([created_at])
+  @@index([status])
+  @@map("TESTIMONIES")
 }
