@@ -1,0 +1,986 @@
+===== src/app/api/auth/login/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { authService } from '@/src/services/auth.service'  // perbaiki path jika perlu
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const ip = req.headers.get('x-forwarded-for') || 'unknown'
+    const { user, sessionToken } = await authService.login(body, ip)
+    const response = NextResponse.json({ success: true, data: user })
+    response.cookies.set('sessionToken', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7
+    })
+    return response
+  } catch (error: any) {
+    const status = error.statusCode || 400
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login user
+ *     description: Login menggunakan email dan password
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login berhasil
+ *       401:
+ *         description: Email atau password salah
+ */
+
+===== src/app/api/auth/logout/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { authService } from '@/src/services/auth.service'
+
+export async function POST(req: NextRequest) {
+  try {
+    const sessionToken = req.cookies.get('sessionToken')?.value
+    if (sessionToken) {
+      await authService.logout(sessionToken)
+    }
+    const response = NextResponse.json({ success: true, data: null })
+    response.cookies.delete('sessionToken')
+    return response
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error.message || 'Logout failed' },
+      { status: 500 }
+    )
+  }
+}
+
+===== src/app/api/auth/me/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/src/lib/auth'
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    return NextResponse.json({ success: true, data: user })
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error.message || 'Internal error' },
+      { status: 500 }
+    )
+  }
+}
+
+===== src/app/api/auth/register/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { authService } from '@/src/services/auth.service'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const user = await authService.register(body)
+    return NextResponse.json({ success: true, data: user }, { status: 201 })
+  } catch (error: any) {
+    const message = error.message || 'Registration failed'
+    const status = message === 'Email sudah terdaftar' ? 409 : 400
+    return NextResponse.json({ success: false, message }, { status })
+  }
+}
+
+===== src/app/api/contents/[id]/route.ts =====
+
+===== src/app/api/contents/route.ts =====
+
+===== src/app/api/curriculum/[id]/route.ts =====
+
+===== src/app/api/curriculum/route.ts =====
+
+===== src/app/api/docs/route.ts =====
+import { NextResponse } from 'next/server'
+import { swaggerSpec } from '@/src/lib/swagger'
+
+export async function GET() {
+  return NextResponse.json(swaggerSpec)
+}
+
+===== src/app/api/documents/[id]/route.ts =====
+
+===== src/app/api/documents/route.ts =====
+
+===== src/app/api/faq/[id]/route.ts =====
+
+===== src/app/api/faq/route.ts =====
+
+===== src/app/api/lecturers/[id]/publications/route.ts =====
+
+===== src/app/api/lecturers/[id]/route.ts =====
+
+===== src/app/api/lecturers/route.ts =====
+
+===== src/app/api/news/[id]/route.ts =====
+
+===== src/app/api/news/route.ts =====
+
+===== src/app/api/publications/[id]/authors/route.ts =====
+
+===== src/app/api/publications/[id]/route.ts =====
+
+===== src/app/api/publications/route.ts =====
+
+===== src/app/api/roles/route.ts =====
+import { NextResponse } from 'next/server'
+import { roleRepository } from '@/src/repositories/role.repository'
+import { requireRole } from '@/src/lib/auth'
+import { ROLES } from '@/src/constants/roles'
+
+export async function GET() {
+  try {
+    await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
+    const roles = await roleRepository.findAll()
+    return NextResponse.json({ success: true, data: roles })
+  } catch (error: any) {
+    const status = error.statusCode || 500
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+===== src/app/api/sections/[id]/route.ts =====
+
+===== src/app/api/sections/route.ts =====
+
+===== src/app/api/sync/[lecturerId]/route.ts =====
+
+===== src/app/api/testimonies/[id]/route.ts =====
+
+===== src/app/api/testimonies/route.ts =====
+
+===== src/app/api/upload/file/route.ts =====
+
+===== src/app/api/upload/image/route.ts =====
+
+===== src/app/api/users/[id]/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { userService } from '@/src/services/user.service'
+import { requireRole } from '@/src/lib/auth'
+import { ROLES } from '@/src/constants/roles'
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
+    const { id } = await params
+    const user = await userService.getUserById(id)
+    return NextResponse.json({ success: true, data: user })
+  } catch (error: any) {
+    const status = error.statusCode || 500
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const actor = await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
+    const { id } = await params
+    const body = await req.json()
+    const updated = await userService.updateUser(id, body, actor.id)
+    return NextResponse.json({ success: true, data: updated })
+  } catch (error: any) {
+    const status = error.statusCode || 400
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const actor = await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
+    const { id } = await params
+    await userService.deleteUser(id, actor.id)
+    return NextResponse.json({ success: true, data: null })
+  } catch (error: any) {
+    const status = error.statusCode || 500
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+===== src/app/api/users/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { userService } from '@/src/services/user.service'
+import { requireRole } from '@/src/lib/auth'
+import { ROLES } from '@/src/constants/roles'
+
+export async function GET(req: NextRequest) {
+  try {
+    await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
+    const searchParams = req.nextUrl.searchParams
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const result = await userService.getAllUsers(page, limit)
+    return NextResponse.json({ success: true, data: result })
+  } catch (error: any) {
+    const status = error.message === 'UNAUTHORIZED' ? 401 : error.message === 'FORBIDDEN' ? 403 : 500
+    const message = error.message === 'UNAUTHORIZED' ? 'Unauthorized' : error.message === 'FORBIDDEN' ? 'Forbidden' : error.message || 'Failed to fetch users'
+    return NextResponse.json({ success: false, message }, { status })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const actor = await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]) 
+    const body = await req.json()
+    const newUser = await userService.createUser(body, actor.id)
+    return NextResponse.json({ success: true, data: newUser }, { status: 201 })
+  } catch (error: any) {
+    const status = error.message === 'FORBIDDEN' ? 403 : error.message === 'Email sudah terdaftar' ? 409 : 400
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+===== src/app/api/verification/confirm/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { verificationService } from '@/src/services/verification.service'
+import { sendVerificationSchema } from '@/src/validations/auth.validation'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { email } = sendVerificationSchema.parse(body)
+    await verificationService.sendVerification(email)
+    return NextResponse.json({ success: true, data: { message: 'Verification email sent' } })
+  } catch (error: any) {
+    const status = error.statusCode || 400
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+===== src/app/api/verification/send/route.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { verificationService } from '@/src/services/verification.service'
+import { confirmVerificationSchema } from '@/src/validations/auth.validation'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { email, token } = confirmVerificationSchema.parse(body)
+    await verificationService.confirmVerification(email, token)
+    return NextResponse.json({ success: true, data: { message: 'Email verified' } })
+  } catch (error: any) {
+    const status = error.statusCode || 400
+    return NextResponse.json({ success: false, message: error.message }, { status })
+  }
+}
+
+===== src/app/docs/page.tsx =====
+'use client'
+
+import dynamic from 'next/dynamic'
+import 'swagger-ui-react/swagger-ui.css'
+
+const SwaggerUI = dynamic(() => import('swagger-ui-react'), {
+  ssr: false,
+})
+
+export default function DocsPage() {
+  return (
+    <SwaggerUI url="http://localhost:3000/api/docs" />
+  )
+}
+
+===== src/app/layout.tsx =====
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+
+===== src/constants/roles.ts =====
+export const ROLES = {
+  USER: 'user',
+  ADMIN: 'admin',
+  SUPERADMIN: 'superadmin'
+} as const
+
+export type Role = typeof ROLES[keyof typeof ROLES]
+
+===== src/constants/status.ts =====
+
+===== src/lib/auth.ts =====
+import { cookies } from 'next/headers'
+import { prisma } from './prisma' 
+import { UnauthorizedError, ForbiddenError } from './errors'
+import { hashToken, omitPassword } from './utils'
+import { User, Role } from '@prisma/client'
+
+// tipe untuk user yang sudah termasuk role dan tanpa password
+export type UserWithRole = Omit<User, 'password'> & { role: Role }
+
+export async function getCurrentUser(): Promise<UserWithRole | null> {
+  const cookieStore = await cookies()
+  const rawToken = cookieStore.get('sessionToken')?.value
+  if (!rawToken) return null
+
+  const hashedToken = hashToken(rawToken)
+  const session = await prisma.session.findUnique({
+    where: { sessionToken: hashedToken },
+    include: {
+      user: {
+        include: { role: true }
+      }
+    }
+  })
+
+  if (!session || session.expires < new Date()) {
+    if (session) await prisma.session.delete({ where: { sessionToken: hashedToken } })
+    return null
+  }
+
+  return omitPassword(session.user) as UserWithRole
+}
+
+export async function requireAuth(): Promise<UserWithRole> {
+  const user = await getCurrentUser()
+  if (!user) throw new UnauthorizedError()
+  return user
+}
+
+export async function requireRole(allowedRoles: string[]): Promise<UserWithRole> {
+  const user = await requireAuth()
+  const roleName = user.role?.role_name
+  if (!roleName || !allowedRoles.includes(roleName)) {
+    throw new ForbiddenError('Insufficient role')
+  }
+  return user
+}
+
+===== src/lib/errors.ts =====
+export class AppError extends Error {
+  statusCode: number
+  constructor(message: string, statusCode: number) {
+    super(message)
+    this.statusCode = statusCode
+    this.name = 'AppError'
+  }
+}
+
+export class UnauthorizedError extends AppError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, 401)
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, 403)
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message: string = 'Not found') {
+    super(message, 404)
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string = 'Conflict') {
+    super(message, 409)
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string = 'Validation error') {
+    super(message, 400)
+  }
+}
+
+===== src/lib/prisma.ts =====
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+
+export const prisma = globalForPrisma.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+===== src/lib/swagger.ts =====
+import swaggerJsdoc from 'swagger-jsdoc'
+
+export const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'SI UMN API',
+      version: '1.0.0',
+    },
+  },
+  apis: ['./src/app/api/**/*.ts'],
+})
+
+===== src/lib/utils.ts =====
+import { randomBytes, createHash } from 'crypto'
+
+export const generateToken = (length: number = 32): string => {
+  return randomBytes(length).toString('hex')
+}
+
+export const hashToken = (token: string): string => {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+export const omitPassword = <T extends { password?: string | null }>(user: T): Omit<T, 'password'> => {
+  const { password, ...rest } = user
+  return rest
+}
+
+export const normalizeEmail = (email: string): string => {
+  return email.toLowerCase().trim()
+}
+
+===== src/middlewares/auth.middleware.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/src/lib/auth'
+
+export async function withAuth(
+  req: NextRequest,
+  handler: (req: NextRequest, user: any) => Promise<NextResponse>
+) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    return handler(req, user)
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+===== src/middlewares/error.middleware.ts =====
+// src/middlewares/role.middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/src/lib/auth'
+
+/**
+ * Middleware untuk membatasi akses berdasarkan role.
+ * Gunakan dengan membungkus handler di route.
+ *
+ * Contoh:
+ * export const GET = withRole(['admin', 'superadmin'])(async (req, user) => {
+ *   return NextResponse.json({ success: true, data: user })
+ * })
+ */
+export function withRole(allowedRoles: string[]) {
+  return async (
+    req: NextRequest,
+    handler: (req: NextRequest, user: any) => Promise<NextResponse>
+  ) => {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const roleName = user.role?.role_name as string
+    if (!allowedRoles.includes(roleName)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: insufficient role' },
+        { status: 403 }
+      )
+    }
+    return handler(req, user)
+  }
+}
+
+===== src/middlewares/role.middleware.ts =====
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/src/lib/auth'
+
+export function withRole(allowedRoles: string[]) {
+  return async (req: NextRequest, handler: (req: NextRequest, user: any) => Promise<NextResponse>) => {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+    const roleName = user.role?.role_name
+    if (!allowedRoles.includes(roleName)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: insufficient role' },
+        { status: 403 }
+      )
+    }
+    return handler(req, user)
+  }
+}
+
+===== src/repositories/activity-log.repository.ts =====
+import { prisma } from '@/src/lib/prisma'
+import { Prisma } from '@prisma/client'
+
+export const activityLogRepository = {
+  async create(data: Prisma.ActivityLogUncheckedCreateInput) {
+    return prisma.activityLog.create({ data })
+  }
+}
+
+===== src/repositories/auth-log.repository.ts =====
+import { prisma } from '@/src/lib/prisma'
+import { Prisma } from '@prisma/client'
+
+export const authLogRepository = {
+  async create(data: Prisma.AuthLogUncheckedCreateInput) {
+    return prisma.authLog.create({ data })
+  }
+}
+
+===== src/repositories/lecturer.repository.ts =====
+
+===== src/repositories/news.repository.ts =====
+
+===== src/repositories/publication.repository.ts =====
+
+===== src/repositories/role.repository.ts =====
+import { prisma } from '@/src/lib/prisma' 
+import { RoleName } from '@prisma/client'
+
+export const roleRepository = {
+  async findByName(name: RoleName | string) {
+    return prisma.role.findFirst({
+      where: { role_name: name as RoleName }
+    })
+  },
+
+  async findAll() {
+    return prisma.role.findMany()
+  },
+
+  async getDefaultRole() {
+    return this.findByName('user')
+  }
+}
+
+===== src/repositories/session.repository.ts =====
+import { prisma } from '@/src/lib/prisma'
+import { hashToken } from '@/src/lib/utils'
+
+export const sessionRepository = {
+  async create(userId: string, rawToken: string, expires: Date) {
+    const hashedToken = hashToken(rawToken)
+    return prisma.session.create({
+      data: {
+        sessionToken: hashedToken,
+        userId,
+        expires
+      }
+    })
+  },
+  async findByRawToken(rawToken: string) {
+    const hashedToken = hashToken(rawToken)
+    return prisma.session.findUnique({
+      where: { sessionToken: hashedToken },
+      include: { user: { include: { role: true } } }
+    })
+  },
+  async deleteByRawToken(rawToken: string) {
+    const hashedToken = hashToken(rawToken)
+    return prisma.session.delete({ where: { sessionToken: hashedToken } })
+  }
+}
+
+===== src/repositories/user.repository.ts =====
+import prisma from '@/lib/prisma'
+import { Prisma, User } from '@prisma/client'
+
+export const userRepository = {
+  async findByEmail(email: string) {
+    return prisma.user.findUnique({
+      where: { email: email ?? undefined },
+      include: { role: true }
+    })
+  },
+
+  async findById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      include: { role: true }
+    })
+  },
+
+  async findAll(skip?: number, take?: number) {
+    return prisma.user.findMany({
+      skip,
+      take,
+      include: { role: true },
+      orderBy: { createdAt: 'desc' }
+    })
+  },
+
+  async count() {
+    return prisma.user.count()
+  },
+
+  async create(data: Prisma.UserCreateInput) {
+    return prisma.user.create({
+      data,
+      include: { role: true }
+    })
+  },
+
+  async update(id: string, data: Prisma.UserUpdateInput) {
+    return prisma.user.update({
+      where: { id },
+      data,
+      include: { role: true }
+    })
+  },
+
+  async delete(id: string) {
+    return prisma.user.delete({ where: { id } })
+  }
+}
+
+===== src/repositories/verification-token.repository.ts =====
+import { prisma } from '@/src/lib/prisma'
+
+export const verificationTokenRepository = {
+  async create(identifier: string, token: string, expires: Date) {
+    return prisma.verificationToken.create({
+      data: { identifier, token, expires }
+    })
+  },
+  async findUnique(identifier: string, token: string) {
+    return prisma.verificationToken.findUnique({
+      where: { identifier_token: { identifier, token } }
+    })
+  },
+  async delete(identifier: string, token: string) {
+    return prisma.verificationToken.delete({
+      where: { identifier_token: { identifier, token } }
+    })
+  }
+}
+
+===== src/services/auth.service.ts =====
+import bcrypt from 'bcrypt'
+import { userRepository } from '@/src/repositories/user.repository'
+import { sessionRepository } from '@/src/repositories/session.repository'
+import { roleRepository } from '@/src/repositories/role.repository'
+import { authLogRepository } from '@/src/repositories/auth-log.repository'
+import { generateToken, omitPassword, normalizeEmail } from '@/src/lib/utils'
+import { registerSchema, loginSchema } from '@/src/validations/auth.validation'
+import { ConflictError, UnauthorizedError, NotFoundError, AppError } from '@/src/lib/errors'
+
+export const authService = {
+  async register(data: unknown) {
+    const validated = registerSchema.parse(data)
+    const email = normalizeEmail(validated.email)
+    const existing = await userRepository.findByEmail(email)
+    if (existing) throw new ConflictError('Email sudah terdaftar')
+
+    const hashedPassword = await bcrypt.hash(validated.password, 10)
+    const userRole = await roleRepository.getDefaultRole()
+    if (!userRole) throw new AppError('Role default tidak ditemukan', 500)
+
+    const user = await userRepository.create({
+      email,
+      password: hashedPassword,
+      name: validated.name,
+      role: { connect: { id: userRole.id } }
+    })
+
+    // Log
+    await authLogRepository.create({ userId: user.id, email, ip_address: 'system', event: 'register' })
+
+    return omitPassword(user)
+  },
+
+  async login(data: unknown, ipAddress: string = 'unknown') {
+    const validated = loginSchema.parse(data)
+    const email = normalizeEmail(validated.email)
+    const user = await userRepository.findByEmail(email)
+    if (!user || !user.password) throw new UnauthorizedError('Email atau password salah')
+
+    const isValid = await bcrypt.compare(validated.password, user.password)
+    if (!isValid) throw new UnauthorizedError('Email atau password salah')
+
+    const rawToken = generateToken()
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    await sessionRepository.create(user.id, rawToken, expires)
+
+    // Log
+    await authLogRepository.create({ userId: user.id, email, ip_address: ipAddress, event: 'login_success' })
+
+    return { user: omitPassword(user), sessionToken: rawToken }
+  },
+
+  async logout(rawToken: string) {
+    await sessionRepository.deleteByRawToken(rawToken)
+    return true
+  },
+
+  async getMe(userId: string) {
+    const user = await userRepository.findById(userId)
+    if (!user) throw new NotFoundError('User tidak ditemukan')
+    return omitPassword(user)
+  }
+}
+
+===== src/services/lecturer.service.ts =====
+
+===== src/services/news.service.ts =====
+
+===== src/services/publication.service.ts =====
+
+===== src/services/sync.service.ts =====
+
+===== src/services/user.service.ts =====
+import bcrypt from 'bcrypt'
+import { userRepository } from '@/src/repositories/user.repository'
+import { roleRepository } from '@/src/repositories/role.repository'
+import { activityLogRepository } from '@/src/repositories/activity-log.repository'
+import { createUserSchema, updateUserSchema } from '@/src/validations/user.validation'
+import { omitPassword, normalizeEmail } from '@/src/lib/utils'
+import { NotFoundError, ConflictError, AppError } from '@/src/lib/errors'
+
+export const userService = {
+  async getAllUsers(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit
+    const [users, total] = await Promise.all([
+      userRepository.findAll(skip, limit),
+      userRepository.count()
+    ])
+    return {
+      data: users.map(omitPassword),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    }
+  },
+
+  async getUserById(id: string) {
+    const user = await userRepository.findById(id)
+    if (!user) throw new NotFoundError('User tidak ditemukan')
+    return omitPassword(user)
+  },
+
+  async createUser(data: unknown, actorId?: string) {
+    const validated = createUserSchema.parse(data)
+    const email = normalizeEmail(validated.email)
+    const existing = await userRepository.findByEmail(email)
+    if (existing) throw new ConflictError('Email sudah terdaftar')
+
+    const role = await roleRepository.findByName(validated.role)
+    if (!role) throw new AppError('Role tidak valid', 400)
+
+    let hashedPassword = null
+    if (validated.password) {
+      hashedPassword = await bcrypt.hash(validated.password, 10)
+    } else if (!validated.password && validated.role !== 'user') {
+      // Jika tidak ada password, hanya diperbolehkan untuk SSO, Di sini wajibkan password untuk admin create.
+      throw new AppError('Password wajib diisi untuk user baru', 400)
+    }
+
+    const user = await userRepository.create({
+      email,
+      password: hashedPassword,
+      name: validated.name,
+      role: { connect: { id: role.id } }
+    })
+
+    if (actorId) {
+      await activityLogRepository.create({
+        userId: actorId,
+        action: 'create_user',
+        target: `User ${user.id} created`
+      })
+    }
+
+    return omitPassword(user)
+  },
+
+  async updateUser(id: string, data: unknown, actorId?: string) {
+    const validated = updateUserSchema.parse(data)
+    const existing = await userRepository.findById(id)
+    if (!existing) throw new NotFoundError('User tidak ditemukan')
+
+    if (validated.email && validated.email !== existing.email) {
+      const emailTaken = await userRepository.findByEmail(validated.email)
+      if (emailTaken) throw new ConflictError('Email sudah digunakan')
+    }
+
+    let roleConnect = undefined
+    if (validated.role) {
+      const role = await roleRepository.findByName(validated.role)
+      if (!role) throw new AppError('Role tidak valid', 400)
+      roleConnect = { connect: { id: role.id } }
+    }
+
+    const hashedPassword = validated.password ? await bcrypt.hash(validated.password, 10) : undefined
+
+    const updated = await userRepository.update(id, {
+      email: validated.email ?? undefined,
+      password: hashedPassword,
+      name: validated.name ?? undefined,
+      role: roleConnect
+    })
+
+    if (actorId) {
+      await activityLogRepository.create({
+        userId: actorId,
+        action: 'update_user',
+        target: `User ${id} updated`
+      })
+    }
+
+    return omitPassword(updated)
+  },
+
+  async deleteUser(id: string, actorId?: string) {
+    const user = await userRepository.findById(id)
+    if (!user) throw new NotFoundError('User tidak ditemukan')
+    await userRepository.delete(id)
+
+    if (actorId) {
+      await activityLogRepository.create({
+        userId: actorId,
+        action: 'delete_user',
+        target: `User ${id} deleted`
+      })
+    }
+    return true
+  }
+}
+
+===== src/services/verification.service.ts =====
+import { verificationTokenRepository } from '@/src/repositories/verification-token.repository'
+import { userRepository } from '@/src/repositories/user.repository'
+import { generateToken } from '@/src/lib/utils'
+import { NotFoundError, AppError } from '@/src/lib/errors'
+
+export const verificationService = {
+  async sendVerification(email: string) {
+    const user = await userRepository.findByEmail(email)
+    if (!user) throw new NotFoundError('User tidak ditemukan')
+    if (user.emailVerified) throw new AppError('Email sudah terverifikasi', 400)
+
+    const token = generateToken(32)
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 jam
+
+    await verificationTokenRepository.create(email, token, expires)
+
+    // TODO: kirim email berisi link verifikasi dengan token
+    console.log(`Verification link: /api/verification/confirm?email=${email}&token=${token}`)
+
+    return { message: 'Verification email sent' }
+  },
+
+  async confirmVerification(email: string, token: string) {
+    const record = await verificationTokenRepository.findUnique(email, token)
+    if (!record || record.expires < new Date()) {
+      throw new AppError('Token tidak valid atau kadaluwarsa', 400)
+    }
+
+    await userRepository.update(email, { emailVerified: new Date() })
+    await verificationTokenRepository.delete(email, token)
+
+    return { message: 'Email verified successfully' }
+  }
+}
+
+===== src/types/api.type.ts =====
+export interface ApiSuccess<T = any> {
+  success: true
+  data: T
+}
+
+export interface ApiError {
+  success: false
+  message: string
+}
+
+export type ApiResponse<T = any> = ApiSuccess<T> | ApiError
+
+===== src/types/publication.type.ts =====
+
+===== src/types/user.type.ts =====
+import { User, Role } from '@prisma/client'
+
+export type UserWithoutPassword = Omit<User, 'password'>
+export type UserWithRole = UserWithoutPassword & { role: Role }
+
+===== src/validations/auth.validation.ts =====
+// src/validations/auth.validation.ts (tambah verification schemas)
+import { z } from 'zod'
+
+export const registerSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()),
+  password: z.string().min(6),
+  name: z.string().optional(),
+})
+
+export const loginSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()),
+  password: z.string().min(1),
+})
+
+export const sendVerificationSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()),
+})
+
+export const confirmVerificationSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()),
+  token: z.string().min(1),
+})
+
+===== src/validations/news.validation.ts =====
+
+===== src/validations/publication.validation.ts =====
+
+===== src/validations/user.validation.ts =====
+import { z } from 'zod'
+import { ROLES } from '@/src/constants/roles'
+
+export const createUserSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()),
+  password: z.string().min(6).optional(),
+  name: z.string().optional(),
+  role: z.enum([ROLES.USER, ROLES.ADMIN, ROLES.SUPERADMIN]).default(ROLES.USER),
+})
+
+export const updateUserSchema = z.object({
+  email: z.string().email().transform((v) => v.toLowerCase()).optional(),
+  password: z.string().min(6).optional(),
+  name: z.string().optional(),
+  role: z.enum([ROLES.USER, ROLES.ADMIN, ROLES.SUPERADMIN]).optional(),
+})
+

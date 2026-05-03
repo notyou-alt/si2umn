@@ -1,0 +1,555 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-27T00:00:00.000Z",
+  "__export_source": "insomnia-desktop",
+  "resources": [
+    {
+      "_id": "wrk_si2umn",
+      "parentId": null,
+      "modified": 0,
+      "created": 0,
+      "name": "SI2UMN API - Validated",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_si2umn",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3000",
+        "sessionToken": ""
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "base_url",
+          "sessionToken"
+        ]
+      },
+      "color": null,
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "AUTH",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": 100,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_login",
+      "parentId": "fld_auth",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/auth/login",
+      "name": "Login (setup session)",
+      "description": "Login dengan akun SUPERADMIN dari seeder (budi.santoso@umn.ac.id / superadmin_123)",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"budi.santoso@umn.ac.id\",\n  \"password\": \"superadmin_123\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 10,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const jar = insomnia.getCookieJar();\nconst response = await insomnia.send();\nconst cookies = response.headers.getAll('set-cookie');\nif (cookies.length) {\n  const sessionCookie = cookies.find(c => c.includes('sessionToken'));\n  if (sessionCookie) {\n    const tokenMatch = sessionCookie.match(/sessionToken=([^;]+)/);\n    if (tokenMatch) {\n      insomnia.env.set('sessionToken', tokenMatch[1]);\n    }\n  }\n}\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_logout",
+      "parentId": "fld_auth",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/auth/logout",
+      "name": "Logout",
+      "description": "Menghapus session cookie",
+      "method": "POST",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 20,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\ninsomnia.env.set('sessionToken', '');\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_me",
+      "parentId": "fld_auth",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/auth/me",
+      "name": "Get Current User",
+      "description": "Mengambil data user yang sedang login (harus sudah login)",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 30,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nexpect(response.data.data).to.be.an('object');\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_register",
+      "parentId": "fld_auth",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/auth/register",
+      "name": "Register User",
+      "description": "Mendaftarkan user baru (tidak perlu login). Gunakan email unik.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"user{{$randomInt 1 10}}@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Test User\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 40,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(201);\nexpect(response.data).to.have.property('success', true);\nexpect(response.data.data).to.have.property('email');\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "USERS",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": 200,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_users_list",
+      "parentId": "fld_users",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/users?page=1&limit=10",
+      "name": "List Users (Admin)",
+      "description": "Membutuhkan role ADMIN atau SUPERADMIN. Gunakan setelah login.",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 10,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nexpect(response.data.data).to.have.property('users');\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_users_create",
+      "parentId": "fld_users",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/users",
+      "name": "Create User (Admin)",
+      "description": "Membuat user baru oleh admin. Role bisa 'user', 'admin', 'superadmin'.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"newuser{{$randomInt 1 999}}@example.com\",\n  \"password\": \"Temp123!\",\n  \"name\": \"New User via Admin\",\n  \"role\": \"user\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 20,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(201);\nexpect(response.data).to.have.property('success', true);\nconst userId = response.data.data.id;\ninsomnia.env.set('userId', userId);\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_users_get_by_id",
+      "parentId": "fld_users",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/users/{{ userId }}",
+      "name": "Get User by ID",
+      "description": "Ambil detail user berdasarkan ID (perlu admin). Pastikan userId sudah terset dari Create User.",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 30,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nexpect(response.data.data).to.have.property('id', insomnia.env.get('userId'));\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_users_update",
+      "parentId": "fld_users",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/users/{{ userId }}",
+      "name": "Update User (Admin)",
+      "description": "Update data user (misalnya name).",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Updated Name via Admin\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 40,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_users_delete",
+      "parentId": "fld_users",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/users/{{ userId }}",
+      "name": "Delete User (Admin)",
+      "description": "Hapus user (perlu admin). Hati-hati, data akan terhapus.",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 50,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "fld_roles",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "ROLES",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": 300,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_roles_list",
+      "parentId": "fld_roles",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/roles",
+      "name": "Get Roles (Admin/Superadmin)",
+      "description": "Mengambil daftar role yang tersedia (memerlukan login admin).",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Cookie",
+          "value": "sessionToken={{ sessionToken }}"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 10,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nexpect(response.data.data).to.be.an('array');\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "fld_verification",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "VERIFICATION",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": 400,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_verif_send",
+      "parentId": "fld_verification",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/verification/send",
+      "name": "Send Verification Email",
+      "description": "Mengirim email verifikasi ke user (gunakan email yang terdaftar di seeder, misal rina.wijaya@umn.ac.id)",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"rina.wijaya@umn.ac.id\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 10,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_verif_confirm",
+      "parentId": "fld_verification",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/verification/confirm",
+      "name": "Confirm Verification Token",
+      "description": "Verifikasi email dengan token yang diterima (token harus diganti dengan asli dari email).",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"rina.wijaya@umn.ac.id\",\n  \"token\": \"your-verification-token-here\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 20,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('success', true);\nreturn response;"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "fld_other",
+      "parentId": "wrk_si2umn",
+      "modified": 0,
+      "created": 0,
+      "name": "OTHER",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": 500,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_docs",
+      "parentId": "fld_other",
+      "modified": 0,
+      "created": 0,
+      "url": "{{ base_url }}/api/docs",
+      "name": "Swagger API Docs",
+      "description": "Mengambil spesifikasi OpenAPI (tidak perlu login).",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 10,
+      "_type": "request",
+      "settings": {
+        "renderRequestBody": true,
+        "encodeUrl": true
+      },
+      "script": {
+        "type": "text/javascript",
+        "commands": [
+          {
+            "type": "javascript",
+            "value": "const response = await insomnia.send();\nexpect(response.status).to.equal(200);\nexpect(response.data).to.have.property('openapi');\nreturn response;"
+          }
+        ]
+      }
+    }
+  ]
+}

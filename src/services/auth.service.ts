@@ -25,9 +25,7 @@ export const authService = {
       role: { connect: { id: userRole.id } }
     })
 
-    // Log
     await authLogRepository.create({ userId: user.id, email, ip_address: 'system', event: 'register' })
-
     return omitPassword(user)
   },
 
@@ -35,23 +33,33 @@ export const authService = {
     const validated = loginSchema.parse(data)
     const email = normalizeEmail(validated.email)
     const user = await userRepository.findByEmail(email)
-    if (!user || !user.password) throw new UnauthorizedError('Email atau password salah')
+    if (!user || !user.password) {
+      await authLogRepository.create({ userId: 'unknown', email, ip_address: ipAddress, event: 'login_failed' })
+      throw new UnauthorizedError('Email atau password salah')
+    }
 
     const isValid = await bcrypt.compare(validated.password, user.password)
-    if (!isValid) throw new UnauthorizedError('Email atau password salah')
+    if (!isValid) {
+      await authLogRepository.create({ userId: user.id, email, ip_address: ipAddress, event: 'login_failed' })
+      throw new UnauthorizedError('Email atau password salah')
+    }
 
     const rawToken = generateToken()
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     await sessionRepository.create(user.id, rawToken, expires)
 
-    // Log
     await authLogRepository.create({ userId: user.id, email, ip_address: ipAddress, event: 'login_success' })
-
     return { user: omitPassword(user), sessionToken: rawToken }
   },
 
-  async logout(rawToken: string) {
+  async logout(rawToken: string, userId?: string, email?: string, ipAddress: string = 'unknown') {
     await sessionRepository.deleteByRawToken(rawToken)
+    await authLogRepository.create({
+      userId: userId ?? 'unknown',
+      email: email ?? 'unknown',
+      ip_address: ipAddress,
+      event: 'logout'
+    })
     return true
   },
 
