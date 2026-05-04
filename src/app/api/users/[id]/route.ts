@@ -3,10 +3,10 @@ import { userService } from '@/src/services/user.service'
 import { requireRole } from '@/src/lib/auth'
 import { ROLES } from '@/src/constants/roles'
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
-    const { id } = await params
+    const id = params.id
     const user = await userService.getUserById(id)
     return NextResponse.json({ success: true, data: user })
   } catch (error: any) {
@@ -15,10 +15,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const actor = await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
-    const { id } = await params
+    const id = params.id
     const body = await req.json()
     const updated = await userService.updateUser(id, body, actor.id)
     return NextResponse.json({ success: true, data: updated })
@@ -28,10 +28,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const actor = await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
-    const { id } = await params
+    const id = params.id
     await userService.deleteUser(id, actor.id)
     return NextResponse.json({ success: true, data: null })
   } catch (error: any) {

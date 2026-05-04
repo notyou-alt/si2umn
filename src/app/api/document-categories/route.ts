@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sectionService } from '@/src/services/section.service'
+import { documentCategoryService } from '@/src/services/document-category.service'
 import { requireRole } from '@/src/lib/auth'
 import { ROLES } from '@/src/constants/roles'
 
 export async function GET() {
   try {
-    const sections = await sectionService.getAll()
-    return NextResponse.json({ success: true, data: sections })
+    const categories = await documentCategoryService.getAll()
+    return NextResponse.json({ success: true, data: categories })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
@@ -15,17 +15,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await requireRole([ROLES.ADMIN, ROLES.SUPERADMIN])
-    let body
-    try {
-    body = await req.json()
-    } catch {
-    return NextResponse.json(
-        { success: false, message: 'Body JSON tidak valid' },
-        { status: 400 }
-    )
-    }
-    const section = await sectionService.create(body)
-    return NextResponse.json({ success: true, data: section }, { status: 201 })
+    const body = await req.json()
+    const category = await documentCategoryService.create(body)
+    return NextResponse.json({ success: true, data: category }, { status: 201 })
   } catch (error: any) {
     const status = error.statusCode || 400
     return NextResponse.json({ success: false, message: error.message }, { status })
